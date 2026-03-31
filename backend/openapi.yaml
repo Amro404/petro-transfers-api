@@ -1,0 +1,113 @@
+openapi: 3.0.3
+info:
+  title: Station Transfers API
+  version: 1.0.0
+  description: |
+    Idempotent, concurrency-safe transfer event ingestion with per-station
+    reconciliation summaries. Uses partial-accept strategy for validation.
+paths:
+  /api/transfers:
+    post:
+      summary: Ingest transfer events
+      description: |
+        Accepts a batch of transfer events. Idempotent by event_id.
+        Uses partial-accept: valid events are inserted, invalid ones are
+        recorded separately, and accurate counts are returned.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [events]
+              properties:
+                events:
+                  type: array
+                  minItems: 1
+                  items:
+                    type: object
+                    required: [event_id, station_id, amount, status, created_at]
+                    properties:
+                      event_id:
+                        type: string
+                      station_id:
+                        type: string
+                      amount:
+                        type: number
+                        minimum: 0
+                      status:
+                        type: string
+                      created_at:
+                        type: string
+                        format: date-time
+      responses:
+        "200":
+          description: Insert result
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [inserted, duplicates, invalid, failed]
+                properties:
+                  inserted:
+                    type: integer
+                    minimum: 0
+                    description: Newly stored events
+                  duplicates:
+                    type: integer
+                    minimum: 0
+                    description: Events ignored (event_id already exists or repeated in batch)
+                  invalid:
+                    type: integer
+                    minimum: 0
+                    description: Events that failed validation (stored in invalid_events table)
+                  failed:
+                    type: integer
+                    minimum: 0
+                    description: Events that failed due to unexpected errors
+              example:
+                inserted: 7
+                duplicates: 3
+                invalid: 0
+                failed: 0
+        "400":
+          description: Payload shape is invalid (e.g. missing events array)
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [message, errors]
+                properties:
+                  message:
+                    type: string
+                  errors:
+                    type: object
+  /api/stations/{station_id}/summary:
+    get:
+      summary: Get station reconciliation summary
+      parameters:
+        - name: station_id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Station summary
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [station_id, total_approved_amount, events_count]
+                properties:
+                  station_id:
+                    type: string
+                  total_approved_amount:
+                    type: number
+                    description: Sum of amount for approved events only
+                    example: 450.25
+                  events_count:
+                    type: integer
+                    minimum: 0
+                    description: Count of all stored events for this station (all statuses)
+                    example: 12
