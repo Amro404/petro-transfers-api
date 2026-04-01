@@ -15,4 +15,9 @@ class StationSummaryController extends Controller
     {
         return response()->json($this->service->summary($station_id));
     }
+
+    public function showLive(string $station_id): JsonResponse
+    {
+        return response()->json($this->service->summaryLive($station_id));
+    }
 }

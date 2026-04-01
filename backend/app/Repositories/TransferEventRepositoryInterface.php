@@ -11,5 +11,7 @@ interface TransferEventRepositoryInterface
     public function applyStationSummaryIncrements(array $incrementsByStation): void;
 
     public function stationSummary(string $stationId): array;
+
+    public function stationSummaryLive(string $stationId): array;
 }
 

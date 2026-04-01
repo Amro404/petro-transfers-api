@@ -6,4 +6,5 @@ use Illuminate\Support\Facades\Route;
 
 Route::post('/transfers', [TransferController::class, 'store']);
 Route::get('/stations/{station_id}/summary', [StationSummaryController::class, 'show']);
+Route::get('/stations/{station_id}/summary/live', [StationSummaryController::class, 'showLive']);
 

@@ -36,28 +36,32 @@ class EloquentTransferEventRepository implements TransferEventRepositoryInterfac
 
     public function applyStationSummaryIncrements(array $incrementsByStation): void
     {
-        DB::transaction(function () use ($incrementsByStation) {
-            foreach ($incrementsByStation as $stationId => $increment) {
-                $events = (int) $increment['events'];
-                $approvedAmount = (string) $increment['approved_amount'];
+        ksort($incrementsByStation);
+
+        foreach ($incrementsByStation as $stationId => $increment) {
+            $events = (int) $increment['events'];
+            $approvedAmount = (string) $increment['approved_amount'];
+
+            DB::transaction(function () use ($stationId, $events, $approvedAmount) {
+                $now = now();
 
                 DB::table('station_summaries')->insertOrIgnore([
                     'station_id' => $stationId,
                     'events_count' => 0,
                     'total_approved_amount' => 0,
-                    'created_at' => now(),
-                    'updated_at' => now(),
+                    'created_at' => $now,
+                    'updated_at' => $now,
                 ]);
 
                 DB::table('station_summaries')
                     ->where('station_id', $stationId)
                     ->update([
-                        'events_count' => DB::raw('events_count + '.(int) $events),
+                        'events_count' => DB::raw('events_count + '.$events),
                         'total_approved_amount' => DB::raw('total_approved_amount + '.((float) $approvedAmount)),
-                        'updated_at' => now(),
+                        'updated_at' => $now,
                     ]);
-            }
-        });
+            }, 5);
+        }
     }
 
     public function stationSummary(string $stationId): array
@@ -65,6 +69,21 @@ class EloquentTransferEventRepository implements TransferEventRepositoryInterfac
         $row = DB::table('station_summaries')
             ->where('station_id', $stationId)
             ->select(['events_count', 'total_approved_amount'])
+            ->first();
+
+        return [
+            'station_id' => $stationId,
+            'total_approved_amount' => round((float) ($row->total_approved_amount ?? 0), 2),
+            'events_count' => (int) ($row->events_count ?? 0),
+        ];
+    }
+
+    public function stationSummaryLive(string $stationId): array
+    {
+        $row = DB::table('transfer_events')
+            ->where('station_id', $stationId)
+            ->selectRaw('COUNT(*) as events_count')
+            ->selectRaw("SUM(CASE WHEN status = 'approved' THEN amount ELSE 0 END) as total_approved_amount")
             ->first();
 
         return [

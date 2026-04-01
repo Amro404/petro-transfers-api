@@ -17,6 +17,11 @@ class IngestionLockService
         try {
             $storeName = config('transfers.lock_store') ?: config('cache.default');
             $store = Cache::store($storeName);
+
+            if (! method_exists($store->getStore(), 'lock')) {
+                return $callback();
+            }
+
             foreach ($keys as $key) {
                 $lock = $store->lock($key, $seconds);
                 $acquired = $lock->block($waitSeconds);

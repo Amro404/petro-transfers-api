@@ -14,5 +14,10 @@ class StationSummaryService
     {
         return $this->repository->stationSummary($stationId);
     }
+
+    public function summaryLive(string $stationId): array
+    {
+        return $this->repository->stationSummaryLive($stationId);
+    }
 }
 

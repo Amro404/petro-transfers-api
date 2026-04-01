@@ -1,4 +1,4 @@
-FROM php:8.2-cli-alpine
+FROM dunglas/frankenphp:php8.2-alpine
 
 WORKDIR /var/www/html
 
@@ -39,4 +39,4 @@ RUN chmod +x entrypoint.sh
 EXPOSE 8000
 
 ENTRYPOINT ["./entrypoint.sh"]
-CMD ["php", "artisan", "serve", "--host=0.0.0.0", "--port=8000"]
+CMD ["php", "artisan", "octane:start", "--server=frankenphp", "--host=0.0.0.0", "--port=8000", "--workers=16"]

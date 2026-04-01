@@ -36,7 +36,7 @@ class TransferIngestionService
         try {
             $eventIds = array_map(static fn (TransferEventDTO $e) => $e->eventId, $valid);
             $lockKeys = $this->lockService->keysForEventIds($eventIds);
-            $result = $this->lockService->withLocks($lockKeys, fn () => $this->ingestValidatedEvents($valid));
+            $result = $this->lockService->withLocks($lockKeys, fn () => $this->ingestValidatedEvents($valid), seconds: 30, waitSeconds: 15);
             return $this->finish($t0, inserted: $result['inserted'], duplicates: $result['duplicates'], invalid: $invalidCount, failed: 0);
         } catch (\Throwable $e) {
             $failedCount = $this->writeFailedRows($valid, $e);
@@ -74,14 +74,9 @@ class TransferIngestionService
 
         $inserted = $this->repository->insertIgnore($insertRows);
 
-        $postExisting = $this->repository->existingEventIds($eventIds);
-        $newlyInsertedIds = array_flip(
-            array_filter($postExisting, static fn (string $id) => !isset($preExisting[$id]))
-        );
-
         $newPayloads = [];
         foreach ($uniqueDtos as $e) {
-            if (isset($newlyInsertedIds[$e->eventId])) {
+            if (!isset($preExisting[$e->eventId])) {
                 $newPayloads[] = [
                     'event_id' => $e->eventId,
                     'station_id' => $e->stationId,

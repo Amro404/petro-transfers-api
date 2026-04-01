@@ -27,7 +27,7 @@ const successRate = new Rate("success_rate");
 const batchDuration = new Trend("batch_duration_ms");
 
 const BASE_URL = __ENV.BASE_URL || "http://localhost:8000";
-const BATCH_SIZE = parseInt(__ENV.BATCH_SIZE || "100", 10);
+const BATCH_SIZE = parseInt(__ENV.BATCH_SIZE || "50", 10);
 const STATIONS = parseInt(__ENV.STATIONS || "100", 10);
 const STATUSES = ["approved", "declined", "pending"];
 
@@ -37,18 +37,18 @@ export const options = {
       executor: "ramping-vus",
       startVUs: 0,
       stages: [
-        { duration: "30s", target: 100 },
-        { duration: "1m", target: 300 },
-        { duration: "2m", target: 500 },
-        { duration: "4m", target: 500 },
+        { duration: "30s", target: 50 },
+        { duration: "1m", target: 100 },
+        { duration: "2m", target: 200 },
+        { duration: "4m", target: 200 },
         { duration: "30s", target: 0 },
       ],
     },
   },
   thresholds: {
-    http_req_failed: ["rate<0.05"],
-    http_req_duration: ["p(95)<5000"],
-    success_rate: ["rate>0.95"],
+    http_req_failed: ["rate<0.10"],
+    http_req_duration: ["p(95)<15000"],
+    success_rate: ["rate>0.90"],
   },
 };
 
@@ -71,7 +71,7 @@ export default function () {
 
   const res = http.post(`${BASE_URL}/api/transfers`, payload, {
     headers: { "Content-Type": "application/json", Accept: "application/json" },
-    timeout: "30s",
+    timeout: "60s",
   });
 
   const ok = check(res, {

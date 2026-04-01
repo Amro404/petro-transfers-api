@@ -1,0 +1,79 @@
+services:
+  app:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile.octane
+    ports:
+      - "8000:8000"
+    environment:
+      APP_ENV: local
+      LOG_CHANNEL: stderr
+      DB_CONNECTION: mysql
+      DB_HOST: mysql
+      DB_PORT: 3306
+      DB_DATABASE: transfers
+      DB_USERNAME: transfers
+      DB_PASSWORD: secret
+      QUEUE_CONNECTION: redis
+      CACHE_STORE: redis
+      TRANSFERS_LOCK_STORE: redis
+      REDIS_CLIENT: phpredis
+      REDIS_HOST: redis
+      REDIS_PORT: 6379
+      MYSQL_ROOT_PASSWORD: rootsecret
+    depends_on:
+      mysql:
+        condition: service_healthy
+    volumes:
+      - ./backend:/var/www/html
+
+  worker:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile.octane
+    command: ["php", "artisan", "queue:work", "redis", "--sleep=1", "--tries=3"]
+    environment:
+      APP_ENV: local
+      LOG_CHANNEL: stderr
+      DB_CONNECTION: mysql
+      DB_HOST: mysql
+      DB_PORT: 3306
+      DB_DATABASE: transfers
+      DB_USERNAME: transfers
+      DB_PASSWORD: secret
+      QUEUE_CONNECTION: redis
+      CACHE_STORE: redis
+      TRANSFERS_LOCK_STORE: redis
+      REDIS_CLIENT: phpredis
+      REDIS_HOST: redis
+      REDIS_PORT: 6379
+    depends_on:
+      mysql:
+        condition: service_healthy
+    volumes:
+      - ./backend:/var/www/html
+    deploy:
+      replicas: 4
+
+  mysql:
+    image: mysql:8.0
+    environment:
+      MYSQL_ROOT_PASSWORD: rootsecret
+      MYSQL_DATABASE: transfers
+      MYSQL_USER: transfers
+      MYSQL_PASSWORD: secret
+    ports:
+      - "3307:3306"
+    command:
+      - --max-connections=300
+      - --innodb-buffer-pool-size=256M
+      - --innodb-log-file-size=64M
+      - --innodb-flush-log-at-trx-commit=2
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "127.0.0.1", "--silent"]
+      interval: 5s
+      retries: 10
+      start_period: 15s
+
+  redis:
+    image: redis:7-alpine

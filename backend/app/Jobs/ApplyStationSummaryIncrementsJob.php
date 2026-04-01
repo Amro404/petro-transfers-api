@@ -16,7 +16,7 @@ class ApplyStationSummaryIncrementsJob implements ShouldQueue
     use Queueable;
     use SerializesModels;
 
-    public int $tries = 3;
+    public int $tries = 5;
 
     public function __construct(
         public readonly array $newEventPayloads,
