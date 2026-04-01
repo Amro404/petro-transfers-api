@@ -64,23 +64,9 @@ This uses `Dockerfile.octane`, which is built on the FrankenPHP image.
 
 ### Why two Dockerfiles?
 
-The default `Dockerfile` runs `php artisan serve` — Laravel's built-in development
-server. It's simple, easy to debug, and perfectly fine for everyday development.
-
-The catch is that it's **single-threaded**. It handles one request at a time, so when
-you throw hundreds of concurrent users at it during a load test, requests pile up and
-start timing out. That's not a bug in the application — it's just the dev server doing
-what it was designed to do.
-
-`Dockerfile.octane` solves this by using **Laravel Octane with FrankenPHP**. Instead of
-booting the entire Laravel framework on every request, Octane keeps the app warm in
-memory and spreads incoming requests across 16 workers. The difference is dramatic —
-what times out at 50 concurrent users on the dev server handles 200 on Octane
-comfortably.
-
-I kept both because they serve different purposes: the standard one stays simple and
-familiar for development, while the Octane one is there specifically when you need to
-push the system hard and see how it actually performs under pressure.
+`Dockerfile` uses `php artisan serve` — single-threaded, good for development.
+`Dockerfile.octane` uses **Laravel Octane (FrankenPHP)** with 16 workers — needed for
+load testing since the dev server can't handle concurrent requests.
 
 ### Make Targets
 
@@ -240,29 +226,13 @@ Two layers prevent double-inserts under concurrent requests:
 Lock store is configurable via `TRANSFERS_LOCK_STORE` (defaults to cache driver).
 In Docker, Redis provides cross-process lock coordination.
 
-### Station Summaries (Incremental)
+### Station Summaries
 
-Rather than running `SUM()`/`COUNT()` on every summary request, the system maintains a
-`station_summaries` table with pre-aggregated totals. After each batch insert,
-`ApplyStationSummaryIncrementsJob` computes per-station deltas for truly new events and
-atomically increments the summary row (`events_count`, `total_approved_amount`).
-
-Each station is updated in its own micro-transaction with up to 5 retries, and stations
-are processed in sorted order (`ksort`) to prevent MySQL deadlocks when multiple queue
-workers run concurrently.
-
-A separate `/summary/live` endpoint computes the same data directly from `transfer_events`
-via `COUNT`/`SUM`, serving as an audit tool to verify the pre-aggregated values.
-
-In Docker, the job is dispatched to a **Redis queue** and processed by 4 dedicated worker
-replicas. Locally, `QUEUE_CONNECTION=sync` (the `.env.example` default) runs jobs inline
-so summaries are consistent immediately after `POST /transfers` returns.
-
-### Numeric Precision
-
-Amounts are stored as `DECIMAL(14,2)` in both `transfer_events` and `station_summaries`.
-The `ApplyStationSummaryIncrementsJob` uses `bcadd()` for precise decimal arithmetic,
-and SQL `total_approved_amount + N` avoids PHP floating-point drift during aggregation.
+Pre-aggregated `station_summaries` table gives O(1) reads. A queued job
+(`ApplyStationSummaryIncrementsJob`) incrementally updates totals after each batch insert,
+with per-station retries for concurrency safety. `/summary/live` computes the same data
+directly from `transfer_events` for auditing. Amounts use `DECIMAL(14,2)` and `bcadd()`
+to avoid floating-point drift.
 
 ### Storage Abstraction
 
