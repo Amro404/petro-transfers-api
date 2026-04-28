@@ -40,6 +40,7 @@ class ApplyStationSummaryIncrementsJob implements ShouldQueue
                     (string) $payload['amount'],
                     2,
                 );
+                $incrementsByStation[$stationId]['approved_events_count']++;
             }
         }
 

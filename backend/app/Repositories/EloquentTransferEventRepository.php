@@ -41,13 +41,15 @@ class EloquentTransferEventRepository implements TransferEventRepositoryInterfac
         foreach ($incrementsByStation as $stationId => $increment) {
             $events = (int) $increment['events'];
             $approvedAmount = (string) $increment['approved_amount'];
+            $approvedEventsCount = (int) $increment['approved_events_count'];
 
-            DB::transaction(function () use ($stationId, $events, $approvedAmount) {
+            DB::transaction(function () use ($stationId, $events, $approvedAmount, $approvedEventsCount) {
                 $now = now();
 
                 DB::table('station_summaries')->insertOrIgnore([
                     'station_id' => $stationId,
                     'events_count' => 0,
+                    'approved_events_count' => 0,
                     'total_approved_amount' => 0,
                     'created_at' => $now,
                     'updated_at' => $now,
@@ -57,6 +59,7 @@ class EloquentTransferEventRepository implements TransferEventRepositoryInterfac
                     ->where('station_id', $stationId)
                     ->update([
                         'events_count' => DB::raw('events_count + '.$events),
+                        'approved_events_count' => DB::raw('approved_events_count + '.$approvedEventsCount),
                         'total_approved_amount' => DB::raw('total_approved_amount + '.((float) $approvedAmount)),
                         'updated_at' => $now,
                     ]);
